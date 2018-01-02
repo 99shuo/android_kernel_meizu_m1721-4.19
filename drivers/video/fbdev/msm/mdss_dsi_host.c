@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2018, 2020-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (C) 2017 XiaoMi, Inc. */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -117,7 +116,6 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	mutex_init(&ctrl->cmd_mutex);
 	mutex_init(&ctrl->clk_lane_mutex);
 	mutex_init(&ctrl->cmdlist_mutex);
-	mutex_init(&ctrl->dsi_ctrl_mutex);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->rx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->status_buf, SZ_4K);
@@ -1305,6 +1303,28 @@ int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 
 	return ret;
 }
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+extern u32 te_count;
+static u32 te_count_old = 1;
+int mdss_dsi_TE_NT35596_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int ret = 1;
+
+	if (te_count_old != te_count)
+		te_count_old = te_count;
+	else {
+		pr_err("liujia te_count doesn't add as time\n");
+		ret = 0;
+	}
+
+	if (te_count >= 10000)
+		te_count = 0;
+
+	return ret;
+
+}
+#endif
 
 void mdss_dsi_dsc_config(struct mdss_dsi_ctrl_pdata *ctrl, struct dsc_desc *dsc)
 {
