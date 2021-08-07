@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (C) 2017 XiaoMi, Inc.
  */
 #include <linux/slab.h>
 #include <linux/debugfs.h>
@@ -21,9 +20,12 @@
 #include <dsp/q6core.h>
 #include <dsp/msm-audio-event-notify.h>
 #include <ipc/apr_tal.h>
-
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
+
+#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
+#include "../asoc/msm-cirrus-playback.h"
+#endif
 
 #define WAKELOCK_TIMEOUT	5000
 #define AFE_CLK_TOKEN	1024
@@ -1002,6 +1004,12 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			return -EINVAL;
 		}
 
+#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
+		if (!crus_afe_callback(data->payload,
+							   data->payload_size))
+			return 0;
+#endif
+
 		if (rtac_make_afe_callback(data->payload,
 					   data->payload_size))
 			return 0;
@@ -1487,6 +1495,17 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 	mutex_unlock(&this_afe.afe_apr_lock);
 	return ret;
 }
+
+#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
+extern int afe_apr_send_pkt_crus(void *data, int index, int set)
+{
+    if (!set)
+        return afe_apr_send_pkt(data, 0);
+    else
+        return afe_apr_send_pkt(data, &this_afe.wait[index]);
+}
+#endif
+
 /*
  * afe_apr_send_clk_pkt : returns 0 on success, negative otherwise.
  */
