@@ -1233,8 +1233,10 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
+	struct snd_soc_codec *dig_cdc = rtd->codec_dais[DIG_CDC]->codec;
+    struct snd_soc_codec *ana_cdc = rtd->codec_dais[ANA_CDC]->codec;
 
-	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
+	pr_err("%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
 
 	if (!q6core_is_adsp_ready()) {
@@ -1272,6 +1274,23 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				__func__, ret);
 			return ret;
 		}
+
+	ret = msm8952_enable_dig_cdc_clk(dig_cdc, 1, true);
+	if (ret < 0) {
+		pr_err("failed to enable mclk\n");
+		return ret;
+	}
+
+	/* Enable the codec mclk config */
+    ret = msm_cdc_pinctrl_select_active_state(pdata->mi2s_gpio_p[PRIM_MI2S]);
+	if (ret < 0) {
+		pr_err("%s: gpio set cannot be activated %sd",
+				__func__, "pri_i2s");
+		return ret;
+	}
+
+	msm_anlg_cdc_mclk_enable(ana_cdc, 1, true);
+
 	}
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
@@ -1311,7 +1330,7 @@ static int msm_prim_auxpcm_startup(struct snd_pcm_substream *substream)
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
 
-	pr_debug("%s(): substream = %s\n",
+	pr_err("%s(): substream = %s\n",
 			__func__, substream->name);
 
 	if (!q6core_is_adsp_ready()) {
@@ -1357,7 +1376,7 @@ static void msm_prim_auxpcm_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_component *dig_cdc = NULL;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 
-	pr_debug("%s(): substream = %s\n",
+	pr_err("%s(): substream = %s\n",
 			__func__, substream->name);
 
 	if (pdata->snd_card_val == INT_DIG_SND_CARD)
@@ -1493,7 +1512,7 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 			snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
 
-	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
+	pr_err("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
 
 	if (!q6core_is_adsp_ready()) {
@@ -1507,7 +1526,7 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
     else
         port_id = AFE_PORT_ID_SECONDARY_MI2S_RX;
 
-	pr_info("%s(): ref_count = %d\n", __func__, 
+	pr_err("%s(): ref_count = %d\n", __func__, 
 			atomic_read(&quat_mi2s_rsc_ref));
 #endif
 
@@ -3294,6 +3313,8 @@ codec_dai:
 		}
 		if ((dai_link[i].id == MSM_BACKEND_DAI_PRI_MI2S_RX) ||
 		(dai_link[i].id == MSM_BACKEND_DAI_TERTIARY_MI2S_TX) ||
+		(dai_link[i].id == MSM_BACKEND_DAI_QUINARY_MI2S_TX) ||
+		(dai_link[i].id == MSM_BACKEND_DAI_QUATERNARY_MI2S_TX) ||
 		(dai_link[i].id == MSM_BACKEND_DAI_SENARY_MI2S_TX)) {
 			if (pdata->snd_card_val == INT_SND_CARD) {
 				index = of_property_match_string(
