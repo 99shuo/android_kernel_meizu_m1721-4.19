@@ -46,7 +46,6 @@ enum {
 	TERT_MI2S,
 	QUAT_MI2S,
 	QUIN_MI2S,
-	CS35L35,
 	MI2S_MAX,
 };
 
