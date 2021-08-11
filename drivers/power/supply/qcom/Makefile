@@ -18,3 +18,4 @@ obj-$(CONFIG_QPNP_SMBLITE)		+= step-chg-jeita.o battery.o qpnp-smblite.o smblite
 obj-$(CONFIG_QPNP_VM_BMS)		+= qpnp-vm-bms.o batterydata-lib.o batterydata-interface.o
 obj-$(CONFIG_QPNP_LINEAR_CHARGER)	+= qpnp-linear-charger.o
 obj-$(CONFIG_QPNP_TYPEC)	+= qpnp-typec.o
+obj-$(CONFIG_SM5424_CHARGER)	+= sm5424-charger.o
