@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
 #include <linux/clk/msm-clk.h>
+#include <linux/sched/clock.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 #include <media/msmb_camera-legacy.h>
