@@ -5366,11 +5366,6 @@ struct afe_port_cmd_get_param_v2 {
 	/* The parameter ID of the parameter data requested */
 	u32 param_id;
 
-	/* Legacy address */
-	u32 payload_address_lsw;
-	u32 payload_address_msw;
-	u32 mem_map_handle;
-
 	/* The header information for the parameter data */
 	struct param_hdr_v1 param_hdr;
 } __packed;
