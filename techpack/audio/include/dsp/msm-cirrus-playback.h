@@ -13,24 +13,35 @@
 #define MSM_CIRRUS_PLAYBACK_H
 
 #include <linux/slab.h>
-#include "../include/dsp/apr_audio-v2.h"
-#include "../include/dsp/q6afe-v2.h"
-#include "../include/dsp/q6audio-v2.h"
+#include <dsp/apr_audio-v2.h>
+#include <dsp/q6afe-v2.h>
+#include <dsp/q6audio-v2.h>
 #include <sound/soc.h>
 #include <uapi/sound/msm-cirrus-playback.h>
 
+struct afe_custom_crus_set_config_v2_t {
+	struct apr_hdr hdr;
+	struct afe_port_cmd_set_param_v2 param;
+	struct param_hdr_v2 data;
+} __packed;
+
+struct afe_custom_crus_get_config_v2_t {
+	struct apr_hdr hdr;
+	struct afe_port_cmd_get_param_v2 param;
+	struct param_hdr_v2 data;
+} __packed;
+
 struct afe_custom_crus_set_config_t {
-  struct apr_hdr hdr;
-  struct afe_port_cmd_set_param_v2 param;
-  struct afe_port_param_data_v2 data;
+	struct apr_hdr hdr;
+	struct afe_port_cmd_set_param_v3 param;
+	struct param_hdr_v3 data;
 } __packed;
 
 struct afe_custom_crus_get_config_t {
-  struct apr_hdr hdr;
-  struct afe_port_cmd_get_param_v2 param;
-  struct afe_port_param_data_v2 data;
+	struct apr_hdr hdr;
+	struct afe_port_cmd_get_param_v3 param;
+	struct param_hdr_v3 data;
 } __packed;
-
 /* Payload struct for getting or setting one integer value from/to the DSP
  * module
  */
@@ -84,6 +95,6 @@ struct crus_gb_cali_data {
 
 extern int afe_apr_send_pkt_crus(void *data, int index, int set);
 int crus_afe_callback(void *payload, int size);
-void msm_crus_pb_add_controls(struct snd_soc_platform *platform);
+void msm_crus_pb_add_controls(struct snd_soc_component *component);
 
 #endif /* _MSM_CIRRUS_PLAYBACK_H */

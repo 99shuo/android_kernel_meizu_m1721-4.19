@@ -41,10 +41,6 @@
 
 #define DRV_NAME "msm-pcm-routing-v2"
 
-#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
-#include "msm-cirrus-playback.h"
-#endif
-
 #ifndef CONFIG_DOLBY_DAP
 #undef DOLBY_ADM_COPP_TOPOLOGY_ID
 #define DOLBY_ADM_COPP_TOPOLOGY_ID 0xFFFFFFFE
@@ -31618,10 +31614,6 @@ static int msm_routing_probe(struct snd_soc_component *component)
 	snd_soc_add_component_controls(component, mclk_src_controls,
 				      ARRAY_SIZE(mclk_src_controls));
 			
-#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
-	msm_crus_pb_add_controls(platform);
-#endif
-
 	return 0;
 }
 

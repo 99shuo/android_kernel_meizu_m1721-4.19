@@ -213,10 +213,6 @@ ifdef CONFIG_SND_SOC_WCD_IRQ
 	CORE_OBJS += wcd-irq.o
 endif
 
-ifdef CONFIG_SND_SOC_CS35L35
-	CS35L35_OBJS += cs35l35.o
-endif
-
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \
@@ -296,6 +292,3 @@ mbhc_dlkm-y := $(MBHC_OBJS)
 
 obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) += hdmi_dlkm.o
 hdmi_dlkm-y := $(HDMICODEC_OBJS)
-
-obj-$(CONFIG_SND_SOC_CS35L35) += cs35l35_dlkm.o
-cs35l35_dlkm-y := $(CS35L35_OBJS)

@@ -32,22 +32,6 @@
 
 #define MSM_INT_DIGITAL_CODEC "msm-dig-codec"
 #define PMIC_INT_ANALOG_CODEC "analog-codec"
-#define EXT_SMART_PA "ext-smart-pa"
-
-#if !IS_ENABLED(CONFIG_SND_SOC_WSA881X_ANALOG)
-int wsa881x_get_probing_count(void) {
-	return 0;
-}
-
-int wsa881x_get_presence_count(void) {
-	return 0;
-}
-
-int wsa881x_set_mclk_callback(
-	int (*enable_mclk_callback)(struct snd_soc_card *, bool)) {
-	return 0;
-}
-#endif
 
 enum btsco_rates {
 	RATE_8KHZ_ID,
@@ -1233,11 +1217,21 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
-	struct snd_soc_codec *dig_cdc = rtd->codec_dais[DIG_CDC]->codec;
-    struct snd_soc_codec *ana_cdc = rtd->codec_dais[ANA_CDC]->codec;
+	struct snd_soc_component *dig_cdc = NULL;
+	struct snd_soc_component *ana_cdc = NULL;
 
-	pr_err("%s(): substream = %s  stream = %d\n", __func__,
+	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
+
+	if (pdata->snd_card_val == INT_DIG_SND_CARD)
+		dig_cdc = snd_soc_rtdcom_lookup(rtd, "msm_digital_codec");
+	else
+		dig_cdc = rtd->codec_dais[DIG_CDC]->component;
+
+	if (pdata->snd_card_val == INT_DIG_SND_CARD)
+		ana_cdc = snd_soc_rtdcom_lookup(rtd, "pmic_analog_codec");
+	else
+		ana_cdc = rtd->codec_dais[ANA_CDC]->component;
 
 	if (!q6core_is_adsp_ready()) {
 		pr_err("%s(): adsp not ready\n", __func__);
@@ -1274,6 +1268,7 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				__func__, ret);
 			return ret;
 		}
+	}
 
 	ret = msm8952_enable_dig_cdc_clk(dig_cdc, 1, true);
 	if (ret < 0) {
@@ -1291,7 +1286,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 
 	msm_anlg_cdc_mclk_enable(ana_cdc, 1, true);
 
-	}
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		pr_err("%s: set fmt cpu dai failed; ret=%d\n", __func__, ret);
@@ -1505,7 +1499,7 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 #ifdef CONFIG_MSM_CIRRUS_PLAYBACK
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-    struct snd_soc_codec *codec = codec_dai->codec;
+    struct snd_soc_component *component = codec_dai->component;
 	u16 port_id;
 #endif
 	struct msm_asoc_mach_data *pdata =
@@ -1562,7 +1556,7 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
         }
 
         // set sysclk in cs35l35 range
-        ret = snd_soc_codec_set_sysclk(codec, 0, 0, 
+        ret = snd_soc_component_set_sysclk(component, 0, 0, 
                     Q6AFE_LPASS_OSR_CLK_12_P288_MHZ, 0);
         if (ret < 0) {
             pr_err("%s(): set sysclk failed, err:%d\n", __func__, ret);
@@ -2378,8 +2372,8 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA7,
 	},
 	{ /* hw:x,25 */
-		.name = "Quaternary MI2S_RX Hostless",
-		.stream_name = "Quaternary MI2S_RX Hostless",
+		.name = "QUAT_MI2S Hostless",
+		.stream_name = "QUAT_MI2S Hostless",
 		.cpu_dai_name = "QUAT_MI2S_RX_HOSTLESS",
 		.platform_name = "msm-pcm-hostless",
 		.dynamic = 1,
@@ -2636,6 +2630,24 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ignore_pmdown_time = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA19,
 	},
+	{/* hw:x,41 */
+		.name = "MSM8x16 Haptic Audio",
+		.stream_name = "MultiMedia30",
+		.cpu_dai_name   = "MultiMedia30",
+		.platform_name  = "msm-pcm-dsp.1",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.async_ops = ASYNC_DPCM_SND_SOC_PREPARE |
+			 ASYNC_DPCM_SND_SOC_HW_PARAMS,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			 SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_suspend = 1,
+		/* this dainlink has playback support */
+		.ignore_pmdown_time = 1,
+		.id = MSM_FRONTEND_DAI_MULTIMEDIA30,
+	},
 	{
 		.name = LPASS_BE_SEC_MI2S_RX,
 		.stream_name = "Secondary MI2S Playback",
@@ -2648,6 +2660,22 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
 		.ops = &msm8952_sec_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+#ifndef CONFIG_MSM_CIRRUS_PLAYBACK
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
 	},
 	{
@@ -2996,22 +3024,6 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.ops = &msm8952_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
-#ifndef CONFIG_MSM_CIRRUS_PLAYBACK
-	{
-		.name = LPASS_BE_QUAT_MI2S_RX,
-		.stream_name = "Quaternary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-		.platform_name = "msm-pcm-routing",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
-		.ops = &msm8952_quat_mi2s_be_ops,
-		.ignore_pmdown_time = 1, /* dai link has playback support */
-		.ignore_suspend = 1,
-	},
 };
 
 static struct snd_soc_dai_link msm_int_dig_be_dai[] = {
@@ -3049,31 +3061,11 @@ static struct snd_soc_dai_link msm_int_dig_be_dai[] = {
 	},
 };
 
-static struct snd_soc_dai_link msm_tfa98xx_dig_be_dai_link[] = {
-	{
-		.name = LPASS_BE_QUAT_MI2S_RX,
-		.stream_name = "Quaternary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-		.platform_name = "msm-pcm-routing",
-		.codec_dai_name = "tfa98xx-aif-2-34",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBS_CFS,
-		.dpcm_playback = 1,
-		.no_pcm = 1,
-		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
-		.ops = &msm8952_quat_mi2s_be_ops,
-		.ignore_pmdown_time = 1, /* dai link has playback support */
-		.ignore_suspend = 1,
-	},
-};
-
 static struct snd_soc_dai_link msm8952_dai_links[
 ARRAY_SIZE(msm8952_dai) +
 ARRAY_SIZE(msm_int_be_dai) +
 ARRAY_SIZE(msm8952_hdmi_dba_dai_link) +
-ARRAY_SIZE(msm8952_split_a2dp_dai_link) +
-ARRAY_SIZE(msm_tfa98xx_dig_be_dai_link)];
+ARRAY_SIZE(msm8952_split_a2dp_dai_link)];
 
 static int msm8952_wsa881x_init(struct snd_soc_component *component)
 {
@@ -3116,7 +3108,10 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
 
 	/* for each BE DAI link... */
 	list_for_each_entry(rtd, &card->rtd_list, list)  {
+	        pr_err("%s\n a6661 rtd %s", __func__);
 		if (!rtd->dai_link->codec_name)
+		pr_err("%s\n a6661 dai_link %s", __func__);
+		pr_err("%s\n a6661 codec_name %s", __func__);
 			continue;
 
 		if (!strcmp(rtd->dai_link->codec_name, "cs35l35.8-0040")) {
@@ -3129,8 +3124,6 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
 		pr_err("%s(): cs35l35 wasn't found.\n", __func__);
 		return 0;
 	}
-
-	dapm = snd_soc_component_get_dapm(&rtd->codec->component);
 
 	pr_debug("%s(): setting dapm parameters\n", __func__);
 
@@ -3335,19 +3328,6 @@ codec_dai:
 				dai_link[i].codec_of_node = phandle;
 			}
 		}
-		if ((dai_link[i].id == MSM_BACKEND_DAI_QUATERNARY_MI2S_RX) &&
-			(of_property_read_bool(
-			cdev->of_node, "ext_pa_tfa98xx"))) {
-			index = of_property_match_string(
-					cdev->of_node,
-					"asoc-codec-names",
-					EXT_SMART_PA);
-
-			phandle = of_parse_phandle(
-					cdev->of_node,
-					"asoc-codec", index);
-			dai_link[i].codec_of_node = phandle;
-		}
 	}
 err:
 	return ret;
@@ -3463,14 +3443,6 @@ static struct snd_soc_card *msm8952_populate_sndcard_dailinks(
 				sizeof(msm8952_split_a2dp_dai_link));
 		len1 += ARRAY_SIZE(msm8952_split_a2dp_dai_link);
 	}
-
-	if (of_property_read_bool(dev->of_node,
-				"ext_pa_tfa98xx")) {
-		memcpy(dailink + len1, msm_tfa98xx_dig_be_dai_link,
-			sizeof(msm_tfa98xx_dig_be_dai_link));
-		len1 += ARRAY_SIZE(msm_tfa98xx_dig_be_dai_link);
-	}
-
 	card->dai_link = dailink;
 	card->num_links = len1;
 	return card;

@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
-#include "msm-cirrus-playback.h"
+#include <dsp/msm-cirrus-playback.h>
 
 extern int afe_apr_send_pkt_crus(void *data, int index, int set);
 
@@ -53,10 +53,10 @@ static int cirrus_ff_port = AFE_PORT_ID_QUATERNARY_MI2S_RX;
 static struct crus_gb_cali_data g_cali;
 
 void *crus_gen_afe_set_header(int length, int port, int module, int param) {
-  struct afe_custom_crus_set_config_t *config = NULL;
-  int size = sizeof(struct afe_custom_crus_set_config_t) + length;
+  struct afe_custom_crus_set_config_v2_t *config = NULL;
+  int size = sizeof(struct afe_custom_crus_set_config_v2_t) + length;
   int index = afe_get_port_index(port);
-  uint16_t payload_size = sizeof(struct afe_port_param_data_v2) + length;
+  uint16_t payload_size = sizeof(struct param_hdr_v2) + length;
 
   /* Allocate memory for the message */
   config = kzalloc(size, GFP_KERNEL);
@@ -79,14 +79,14 @@ void *crus_gen_afe_set_header(int length, int port, int module, int param) {
   /* Set param section */
   config->param.port_id = (uint16_t)port;
   config->param.payload_size = payload_size;
-  config->param.payload_address_lsw = 0;
-  config->param.payload_address_msw = 0;
-  config->param.mem_map_handle = 0;
+  config->param.mem_hdr.data_payload_addr_lsw = 0;
+  config->param.mem_hdr.data_payload_addr_msw = 0;
+  config->param.mem_hdr.mem_map_handle = 0;
 
   /* Set data section */
   config->data.module_id = (uint32_t)module;
   config->data.param_id = (uint32_t)param;
-  config->data.reserved = 0; /* Must be set to 0 */
+  config->data.param_size = 0; /* Must be set to 0 */
 
   return (void *)config;
 }
@@ -130,10 +130,10 @@ int crus_afe_set_param(int port, int module, int param, int data_size,
 }
 
 void *crus_gen_afe_get_header(int length, int port, int module, int param) {
-  struct afe_custom_crus_get_config_t *config = NULL;
-  int size = sizeof(struct afe_custom_crus_get_config_t);
+  struct afe_custom_crus_get_config_v2_t *config = NULL;
+  int size = sizeof(struct afe_custom_crus_get_config_v2_t);
   int index = afe_get_port_index(port);
-  uint16_t payload_size = sizeof(struct afe_port_param_data_v2) + length;
+  uint16_t payload_size = sizeof(struct param_hdr_v2) + length;
 
   /* Allocate memory for the message */
   config = kzalloc(size, GFP_KERNEL);
@@ -154,9 +154,9 @@ void *crus_gen_afe_get_header(int length, int port, int module, int param) {
 
   /* Set param section */
   config->param.port_id = (uint16_t)port;
-  config->param.payload_address_lsw = 0;
-  config->param.payload_address_msw = 0;
-  config->param.mem_map_handle = 0;
+  config->param.mem_hdr.data_payload_addr_lsw = 0;
+  config->param.mem_hdr.data_payload_addr_msw = 0;
+  config->param.mem_hdr.mem_map_handle = 0;
   config->param.module_id = (uint32_t)module;
   config->param.param_id = (uint32_t)param;
   /* max data size of the param_ID/module_ID combination */
@@ -165,23 +165,23 @@ void *crus_gen_afe_get_header(int length, int port, int module, int param) {
   /* Set data section */
   config->data.module_id = (uint32_t)module;
   config->data.param_id = (uint32_t)param;
-  config->data.reserved = 0; /* Must be set to 0 */
+  config->data.param_size = 0; /* Must be set to 0 */
   /* actual size of the data for the module_ID/param_ID pair */
   config->data.param_size = length;
 
   return (void *)config;
 }
 
-int crus_afe_get_param(int port, int module, int param, int length,
+int crus_afe_get_param_v2(int port, int module, int param, int length,
                        void *data) {
-  struct afe_custom_crus_get_config_t *config = NULL;
+  struct afe_custom_crus_get_config_v2_t *config = NULL;
   int index = afe_get_port_index(port);
   int ret = 0;
 
   pr_debug("%s: port = %d module = %d param = 0x%x length = %d\n", __func__,
           port, module, param, length);
 
-  config = (struct afe_custom_crus_get_config_t *)crus_gen_afe_get_header(
+  config = (struct afe_custom_crus_get_config_v2_t *)crus_gen_afe_get_header(
       length, port, module, param);
   if (config == NULL) {
     pr_err("%s: Memory allocation failed!\n", __func__);
@@ -268,19 +268,19 @@ int crus_afe_send_config(const char *data, int32_t module) {
   pkt->afe.hdr.token = index;
   pkt->afe.hdr.opcode = 65775;
   pkt->afe.param.payload_size = mem_size + sizeof(struct crus_external_config_t) +
-                                sizeof(struct afe_port_param_data_v2);
+                                sizeof(struct afe_custom_crus_set_config_v2_t);
   pkt->afe.data.param_size = mem_size + sizeof(struct crus_external_config_t);
   pkt->afe.hdr.pkt_size = mem_size + sizeof(struct crus_config_pkt_t);
   pkt->afe.hdr.src_domain = 5;
   pkt->afe.hdr.src_port = 0;
   pkt->afe.hdr.dest_port = 0;
   pkt->afe.param.port_id = port;
-  pkt->afe.param.payload_address_lsw = 0;
-  pkt->afe.param.payload_address_msw = 0;
-  pkt->afe.param.mem_map_handle = 0;
+  pkt->afe.param.mem_hdr.data_payload_addr_lsw = 0;
+  pkt->afe.param.mem_hdr.data_payload_addr_msw = 0;
+  pkt->afe.param.mem_hdr.mem_map_handle = 0;
   pkt->afe.data.module_id = module;
   pkt->afe.data.param_id = param;
-  pkt->afe.data.reserved = 0;
+  pkt->afe.data.param_size = 0;
 
   while (sent < length) {
     chars_to_send = length - sent;
@@ -519,16 +519,16 @@ static const struct snd_kcontrol_new crus_mixer_controls[] = {
                  msm_routing_crus_gb_ext_cfg_get, msm_routing_crus_gb_ext_cfg),
 };
 
-void msm_crus_pb_add_controls(struct snd_soc_platform *platform) {
-  crus_gb_device = platform->dev;
+void msm_crus_pb_add_controls(struct snd_soc_component *component){
+  crus_gb_device = component->dev;
 
   if (crus_gb_device == NULL)
-    pr_err("%s: platform->dev is NULL!\n", __func__);
+    pr_err("%s: component->dev is NULL!\n", __func__);
   else
-    pr_debug("%s: platform->dev = %lx\n", __func__,
+    pr_debug("%s: component->dev = %lx\n", __func__,
             (unsigned long)crus_gb_device);
 
-  snd_soc_add_platform_controls(platform, crus_mixer_controls, 3);
+  snd_soc_add_component_controls(component, crus_mixer_controls, 3);
   return;
 }
 
@@ -726,7 +726,7 @@ static int msm_cirrus_get_temp_cal(void) {
   struct crus_dual_data_t cal_data;
   int ret;
 
-  ret = crus_afe_get_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
+  ret = crus_afe_get_param_v2(cirrus_ff_port, CIRRUS_GB_FFPORT,
                            CRUS_PARAM_RX_GET_TEMP,
                            sizeof(struct crus_dual_data_t), (void *)&cal_data);
   if (ret)
