@@ -25,6 +25,10 @@
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+char fts_lcd_name[40];
+#endif
+
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
 
 /* Master structure to hold all the information about the DSI/panel */
@@ -3250,6 +3254,10 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
+#ifdef CONFIG_MACH_MEIZU_M1721
+		strncpy(fts_lcd_name, panel_name + 14, strlen(panel_name) - 14);
+		fts_lcd_name[strlen(fts_lcd_name)] = '\0';
+#endif
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
 
